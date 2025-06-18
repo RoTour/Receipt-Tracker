@@ -7,21 +7,16 @@
 
 	import type { PageData } from './$types';
 
-	// Get the data loaded from our +page.server.ts file.
 	let { data }: { data: PageData } = $props();
-
-	// The stats are now pre-calculated on the server.
 	const { stats, receipts } = data;
 
 	/**
 	 * Formats the percentage change into a user-friendly string.
-	 * @param {number} change - The percentage change value.
-	 * @returns {string} The formatted string for display.
 	 */
 	function formatChange(change: number) {
-		if (change === 0) return 'No change from last month';
+		if (change === 0) return 'No change';
 		const sign = change > 0 ? '+' : '';
-		return `${sign}${change.toFixed(1)}% from last month`;
+		return `${sign}${change.toFixed(1)}%`;
 	}
 </script>
 
@@ -35,7 +30,7 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">€{stats.totalSpent.value.toFixed(2)}</div>
-				<p class="text-xs text-muted-foreground">{formatChange(stats.totalSpent.change)}</p>
+				<p class="text-xs text-muted-foreground">{formatChange(stats.totalSpent.change)} from last month</p>
 			</Card.Content>
 		</Card.Root>
 
@@ -46,7 +41,7 @@
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">€{stats.averageSpent.value.toFixed(2)}</div>
-				<p class="text-xs text-muted-foreground">{formatChange(stats.averageSpent.change)}</p>
+				<p class="text-xs text-muted-foreground">{formatChange(stats.averageSpent.change)} from last month</p>
 			</Card.Content>
 		</Card.Root>
 
@@ -58,7 +53,11 @@
 			<Card.Content>
 				<div class="text-2xl font-bold">{stats.totalReceipts.value}</div>
 				<p class="text-xs text-muted-foreground">
-					{formatChange(stats.totalReceipts.change)} in the last 30 days
+					{#if stats.totalReceipts.change !== 0}
+						{formatChange(stats.totalReceipts.change)} in the last 30 days
+					{:else}
+						No change in the last 30 days
+					{/if}
 				</p>
 			</Card.Content>
 		</Card.Root>
@@ -90,9 +89,18 @@
 						<Table.Body>
 							{#if receipts && receipts.length > 0}
 								{#each receipts.slice(0, 7) as receipt (receipt.id)}
-									<Table.Row>
+									<!-- The <tr> is now a clickable link to the detail page -->
+									<Table.Row class="relative cursor-pointer hover:bg-muted/50">
+										<!-- This link covers the entire row for a large click area -->
+										<a
+											href="/dashboard/receipt/{receipt.id}"
+											class="absolute inset-0 z-10"
+											aria-label="View receipt from {receipt.stores?.name || 'N/A'} on {new Date(
+												receipt.purchase_date
+											).toLocaleDateString()}"
+										></a>
 										<Table.Cell>
-											<div class="font-medium">{receipt.store || 'N/A'}</div>
+											<div class="font-medium">{receipt.stores?.name || 'N/A'}</div>
 										</Table.Cell>
 										<Table.Cell class="text-right">€{(receipt.total ?? 0).toFixed(2)}</Table.Cell>
 										<Table.Cell class="text-right">

@@ -2,7 +2,6 @@
 
 import { env } from '$env/dynamic/private';
 import { createOpenAI } from '@ai-sdk/openai';
-// Import 'generateObject' instead of 'streamObject'
 import { type CoreMessage, generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -12,18 +11,25 @@ const openrouter = createOpenAI({
 	apiKey: env.OPENROUTER_API_KEY
 });
 
-// Define the expected structure of an item on the receipt
+// Zod schema for a single line item, as extracted by the AI.
 const itemSchema = z.object({
-	name: z.string().describe('The name of the item purchased.'),
-	quantity: z.number().describe('The quantity of the item.'),
-	price: z.number().describe('The total price for this line item.')
+	raw_text: z
+		.string()
+		.describe(
+			'The exact, original text for the line item as it appears on the receipt (e.g., "PAT YAOURT NAT x2").'
+		),
+	normalized_name: z.string().describe("The AI's best guess for the clean, full product name."),
+	brand: z.string().optional().describe("The AI's best guess for the product's brand name."),
+	quantity: z.number().describe('The quantity of the item purchased.'),
+	price: z.number().describe('The total price for this line item (quantity * unit price).')
 });
 
-// Define the full schema for the OCR result
+// Zod schema for the entire receipt, matching our new DB structure.
 const receiptSchema = z.object({
-	store: z.string().optional().describe('The name of the store.'),
-	date: z.string().optional().describe('The date of the purchase in YYYY-MM-DD format.'),
-	total: z.number().optional().describe('The final total amount of the receipt.'),
+	store_name: z.string().describe("The name of the store (e.g., 'Intermarché', 'Lidl')."),
+	store_location: z.string().optional().describe("The store's location or address, if available."),
+	purchase_date: z.string().describe('The date of purchase in YYYY-MM-DD format.'),
+	total: z.number().optional().describe('The final total amount from the receipt.'),
 	items: z.array(itemSchema).describe('An array of all items listed on the receipt.')
 });
 
@@ -33,7 +39,6 @@ const receiptSchema = z.object({
  * @returns {Promise<object>} The extracted and structured receipt data.
  */
 export async function ocrReceipt(file: File) {
-	// Convert the image file to a base64 string to send to the model.
 	const buffer = await file.arrayBuffer();
 	const base64Image = Buffer.from(buffer).toString('base64');
 	const mimeType = file.type;
@@ -44,7 +49,17 @@ export async function ocrReceipt(file: File) {
 			content: [
 				{
 					type: 'text',
-					text: 'Extract the store name, date, total amount, and all line items from this grocery receipt. For each item, provide its name, quantity, and price. Structure the output as a JSON object.'
+					text: `Analyze this grocery receipt. Extract the following information into a structured JSON object:
+1.  The store's name (e.g., "Carrefour").
+2.  The store's location, if present.
+3.  The purchase date in YYYY-MM-DD format.
+4.  The final total amount.
+5.  A list of all items. For each item, provide:
+    - The raw, original text of the line item.
+    - A clean, normalized product name.
+    - The product's brand, if identifiable.
+    - The quantity purchased.
+    - The total price for that line item.`
 				},
 				{
 					type: 'image',
@@ -55,9 +70,7 @@ export async function ocrReceipt(file: File) {
 	];
 
 	try {
-		console.log('Sending request to AI model...');
-		// Use generateObject to get a structured JSON response.
-		// This is a non-streaming call and is less likely to hang.
+		console.log('Sending request to AI model for structured OCR...');
 		const { object } = await generateObject({
 			model: openrouter('google/gemini-2.5-flash-preview-05-20'),
 			messages: messages,
@@ -71,5 +84,5 @@ export async function ocrReceipt(file: File) {
 	}
 }
 
-// Re-export the schema so we can use it for validation in our server action.
+// Re-export the schema for use in the server action.
 export const receiptZodSchema = receiptSchema;

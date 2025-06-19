@@ -11,7 +11,7 @@
 </script>
 
 <!-- The form now has a multipart class for better layout -->
-<div class="w-full max-w-4xl mx-auto flex flex-col lg:flex-row gap-8 lg:gap-12">
+<div class="mx-auto flex w-full max-w-4xl flex-col gap-8 lg:flex-row lg:gap-12">
 	<!-- Left Side: Uploader -->
 	<div class="lg:w-1/2">
 		<form
@@ -42,7 +42,7 @@
 			class="w-full"
 		>
 			<div
-				class="border-2 border-dashed rounded-lg p-8 text-center transition-colors {fileUploadVM.isDragging
+				class="rounded-lg border-2 border-dashed p-8 text-center transition-colors {fileUploadVM.isDragging
 					? 'border-primary'
 					: 'border-input'}"
 				ondragenter={fileUploadVM.handleDragEnter}
@@ -50,7 +50,7 @@
 				ondragover={(e) => e.preventDefault()}
 				ondrop={fileUploadVM.handleDrop}
 			>
-				<Label for="file-upload" class="cursor-pointer flex flex-col items-center gap-2">
+				<Label for="file-upload" class="flex cursor-pointer flex-col items-center gap-2">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="24"
@@ -61,17 +61,14 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						class="h-10 w-10 text-muted-foreground"
+						class="text-muted-foreground h-10 w-10"
 					>
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line
-							x1="12"
-							x2="12"
-							y1="3"
-							y2="15"
-						/></svg
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline
+							points="17 8 12 3 7 8"
+						/><line x1="12" x2="12" y1="3" y2="15" /></svg
 					>
 					<span class="font-semibold">Drag and drop files here</span>
-					<span class="text-sm text-muted-foreground">or click to browse</span>
+					<span class="text-muted-foreground text-sm">or click to browse</span>
 				</Label>
 				<Input
 					type="file"
@@ -86,13 +83,13 @@
 
 			{#if fileUploadVM.selectedFiles.length > 0}
 				<div class="mt-6">
-					<h3 class="font-semibold text-lg">Selected files:</h3>
+					<h3 class="text-lg font-semibold">Selected files:</h3>
 					<ul class="mt-2 space-y-2">
 						{#each fileUploadVM.selectedFiles as file, i (file.name + file.lastModified)}
 							<li
-								class="flex items-center justify-between p-2 rounded-md border bg-muted/20 animate-in fade-in"
+								class="bg-muted/20 animate-in fade-in flex items-center justify-between rounded-md border p-2"
 							>
-								<span class="font-mono text-sm truncate pr-4">{file.name}</span>
+								<span class="truncate pr-4 font-mono text-sm">{file.name}</span>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -112,7 +109,7 @@
 				<Button type="submit" class="mt-6 w-full" size="lg" disabled={fileUploadVM.isSubmitting}>
 					{#if fileUploadVM.isSubmitting}
 						<svg
-							class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+							class="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
 							xmlns="http://www.w3.org/2000/svg"
 							fill="none"
 							viewBox="0 0 24 24"
@@ -148,8 +145,7 @@
 		<!-- A message area to show the result of the form action -->
 		{#if fileUploadVM.actionResult}
 			<div
-				class="mb-6 p-3 rounded-md text-sm font-medium {fileUploadVM.actionResult.type ===
-				'success'
+				class="mb-6 rounded-md p-3 text-sm font-medium {fileUploadVM.actionResult.type === 'success'
 					? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
 					: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}"
 			>
@@ -160,25 +156,26 @@
 		{#if fileUploadVM.processedReceipts.length > 0}
 			<div class="space-y-6">
 				{#each fileUploadVM.processedReceipts as receipt, i (i)}
-					<div class="border rounded-lg p-4 animate-in fade-in">
-						<div class="flex justify-between items-start mb-3">
-							<h3 class="text-lg font-semibold">{receipt.store || 'Unknown Store'}</h3>
-							<span class="text-sm text-muted-foreground">{receipt.date || 'No Date'}</span>
+					<div class="animate-in fade-in rounded-lg border p-4">
+						<div class="mb-3 flex items-start justify-between">
+							<h3 class="text-lg font-semibold">{receipt.store_name || 'Unknown Store'}</h3>
+							<span class="text-muted-foreground text-sm">{receipt.purchase_date || 'No Date'}</span
+							>
 						</div>
 						<Separator />
 						<ul class="my-3 space-y-1.5 text-sm">
-							{#each receipt.items as item (item.name)}
-								<li class="grid grid-cols-[1fr_auto_auto] gap-4 items-center">
-									<span class="truncate">{item.name}</span>
+							{#each receipt.items as item (item.raw_text)}
+								<li class="grid grid-cols-[1fr_auto_auto] items-center gap-4">
+									<span class="truncate">{item.normalized_name}</span>
 									<span class="text-muted-foreground">x{item.quantity}</span>
-									<span class="font-mono text-right w-16">€{item.price.toFixed(2)}</span>
+									<span class="w-16 text-right font-mono">€{item.price.toFixed(2)}</span>
 								</li>
 							{/each}
 						</ul>
 						<Separator />
-						<div class="flex justify-end items-center mt-3">
+						<div class="mt-3 flex items-center justify-end">
 							<span class="font-bold">Total:</span>
-							<span class="font-mono font-bold text-lg ml-4">
+							<span class="ml-4 font-mono text-lg font-bold">
 								€{(receipt.total ?? 0).toFixed(2)}
 							</span>
 						</div>
@@ -186,7 +183,7 @@
 				{/each}
 			</div>
 		{:else if !fileUploadVM.isSubmitting}
-			<div class="text-center text-muted-foreground py-10">
+			<div class="text-muted-foreground py-10 text-center">
 				<p>Upload a receipt to see the extracted data here.</p>
 			</div>
 		{/if}

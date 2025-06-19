@@ -72,7 +72,7 @@ export async function ocrReceipt(file: File) {
 	try {
 		console.log('Sending request to AI model for structured OCR...');
 		const { object } = await generateObject({
-			model: openrouter('google/gemini-2.5-flash-preview-05-20'),
+			model: openrouter('google/gemini-pro-1.5-flash'),
 			messages: messages,
 			schema: receiptSchema
 		});

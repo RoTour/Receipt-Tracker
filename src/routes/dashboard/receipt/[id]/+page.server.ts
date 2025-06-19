@@ -39,14 +39,13 @@ const getReceiptQuery = (id: string) => {
 		.single();
 };
 
-
 export const load: PageServerLoad = async ({ params }) => {
 	console.log(`Loading details for receipt ID: ${params.id}`);
-    const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
+	const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
 
-    if (!bucketName) {
-        throw error(500, 'Supabase bucket name is not configured.');
-    }
+	if (!bucketName) {
+		throw error(500, 'Supabase bucket name is not configured.');
+	}
 
 	const { data: receipt, error: dbError } = await getReceiptQuery(params.id);
 
@@ -63,7 +62,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	if (receipt.file_path) {
 		const { data, error: urlError } = await supabase.storage
 			.from(bucketName)
-			.createSignedUrl(receipt.file_path, 60 * 5); 
+			.createSignedUrl(receipt.file_path, 60 * 5);
 
 		if (urlError) {
 			console.error('Error creating signed URL:', urlError);
@@ -77,7 +76,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		imageUrl
 	};
 };
-
 
 export const actions: Actions = {
 	/**
@@ -98,15 +96,20 @@ export const actions: Actions = {
 		if (fetchError || !originalReceipt || !originalReceipt.file_path) {
 			return fail(404, { message: 'Could not find original receipt file.' });
 		}
-		
+
 		try {
 			const { data: fileBlob, error: downloadError } = await supabase.storage
 				.from(bucketName)
 				.download(originalReceipt.file_path);
-			
-			if (downloadError) throw new Error(`Failed to download receipt image: ${downloadError.message}`);
 
-			const file = new File([fileBlob], originalReceipt.file_path.split('/').pop() || 'receipt.jpg', { type: fileBlob.type });
+			if (downloadError)
+				throw new Error(`Failed to download receipt image: ${downloadError.message}`);
+
+			const file = new File(
+				[fileBlob],
+				originalReceipt.file_path.split('/').pop() || 'receipt.jpg',
+				{ type: fileBlob.type }
+			);
 
 			const aiResult = await ocrReceipt(file);
 			const validation = receiptZodSchema.safeParse(aiResult);
@@ -137,20 +140,20 @@ export const actions: Actions = {
 			if (updateError) {
 				throw new Error(`Failed to update receipt: ${updateError.message}`);
 			}
-			
+
 			await processAndSaveReceiptItems(supabase, receiptId, items);
 
 			// Re-fetch the entire receipt with the new data
 			const { data: updatedReceipt, error: refetchError } = await getReceiptQuery(receiptId);
 
-			if(refetchError) {
+			if (refetchError) {
 				throw new Error(`Failed to refetch receipt data after update: ${refetchError.message}`);
 			}
 
 			return { success: true, message: 'Receipt reprocessed successfully!', updatedReceipt };
-
 		} catch (e) {
-			const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during reprocessing.';
+			const errorMessage =
+				e instanceof Error ? e.message : 'An unknown error occurred during reprocessing.';
 			console.error('Reprocessing failed:', errorMessage);
 			return fail(500, { message: errorMessage });
 		}

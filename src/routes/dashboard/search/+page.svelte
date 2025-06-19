@@ -36,7 +36,7 @@
 <main class="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
 	<div class="max-w-xl">
 		<h1 class="text-3xl font-bold tracking-tight">Search Products</h1>
-		<p class="mt-2 text-muted-foreground">
+		<p class="text-muted-foreground mt-2">
 			Type a product name to see its price history across all your receipts.
 		</p>
 	</div>
@@ -45,7 +45,7 @@
 		<Input
 			type="text"
 			placeholder="Search for apples, milk, toothpaste..."
-			class="w-full text-lg p-6"
+			class="w-full p-6 text-lg"
 			bind:value={searchQuery}
 			oninput={handleInput}
 		/>
@@ -68,7 +68,7 @@
 						<Table.Row>
 							<Table.Cell>
 								<div class="font-medium">{item.products?.normalized_name ?? 'N/A'}</div>
-								<div class="text-xs text-muted-foreground">{item.products?.brand ?? ''}</div>
+								<div class="text-muted-foreground text-xs">{item.products?.brand ?? ''}</div>
 							</Table.Cell>
 							<Table.Cell>{item.receipts?.stores?.name ?? 'N/A'}</Table.Cell>
 							<Table.Cell class="text-right font-mono">
@@ -83,7 +83,7 @@
 				</Table.Body>
 			</Table.Root>
 		{:else if data.query}
-			<div class="text-center text-muted-foreground py-10">
+			<div class="text-muted-foreground py-10 text-center">
 				<p>No results found for "{data.query}".</p>
 			</div>
 		{/if}

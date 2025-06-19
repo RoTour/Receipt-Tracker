@@ -41,7 +41,7 @@ export const load: PageServerLoad = async () => {
 		return { receipts: [], stats: {} };
 	}
 
-	// --- STATS CALCULATION ---
+	// Calculate statistics for the last 30 days vs the 30 days before that.
 	const now = new Date();
 	const thirtyDaysAgo = new Date(new Date().setDate(now.getDate() - 30));
 	const sixtyDaysAgo = new Date(new Date().setDate(now.getDate() - 60));
@@ -65,7 +65,6 @@ export const load: PageServerLoad = async () => {
 	const countPrevious = receiptsPreviousPeriod.length;
 	const averageSpentPrevious = countPrevious > 0 ? totalSpentPrevious / countPrevious : 0;
 
-
 	const totalSpentChange = calculatePercentageChange(totalSpentCurrent, totalSpentPrevious);
 	const averageSpentChange = calculatePercentageChange(averageSpentCurrent, averageSpentPrevious);
 	const totalReceiptsChange = calculatePercentageChange(countCurrent, countPrevious);
@@ -80,15 +79,22 @@ export const load: PageServerLoad = async () => {
 			change: averageSpentChange
 		},
 		totalReceipts: {
-			value: allReceipts.length,
+			value: allReceipts.length, // Display total count of all receipts
 			change: totalReceiptsChange
 		}
 	};
 
-	console.log('Dashboard data loaded:', { stats });
+	// We need to map the data to match the expected structure if the join adds nesting.
+	const mappedReceipts = allReceipts.map((r) => ({
+		id: r.id,
+		purchase_date: r.purchase_date,
+		total: r.total,
+		// Supabase join syntax creates a nested object.
+		store_name: r.stores?.name ?? 'Unknown Store'
+	}));
 
 	return {
-		receipts: allReceipts,
+		receipts: mappedReceipts,
 		stats
 	};
 };

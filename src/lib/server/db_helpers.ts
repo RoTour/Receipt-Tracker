@@ -39,7 +39,9 @@ export async function processAndSaveReceiptItems(
 			.single();
 
 		if (productError) {
-			throw new Error(`Failed to create product '${item.normalized_name}': ${productError.message}`);
+			throw new Error(
+				`Failed to create product '${item.normalized_name}': ${productError.message}`
+			);
 		}
 		const productId = product.id;
 
@@ -53,7 +55,9 @@ export async function processAndSaveReceiptItems(
 		});
 
 		if (itemError) {
-			throw new Error(`Failed to create receipt item for product ID ${productId}: ${itemError.message}`);
+			throw new Error(
+				`Failed to create receipt item for product ID ${productId}: ${itemError.message}`
+			);
 		}
 	}
 	console.log(`Successfully processed ${items.length} items for receipt ID: ${receiptId}`);

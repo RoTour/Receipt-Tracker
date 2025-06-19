@@ -1,13 +1,23 @@
 // src/routes/dashboard/receipt/[id]/+page.server.ts
 
-import { error } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/server/supabase';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { env as publicEnv } from '$env/dynamic/public';
+import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
+import { processAndSaveReceiptItems } from '$lib/server/db_helpers';
+import { createHash } from 'crypto';
 
-export const load: PageServerLoad = async ({ params }) => {
-	console.log(`Loading details for receipt ID: ${params.id}`);
+function sha256(buffer: Buffer): string {
+	return createHash('sha256').update(buffer).digest('hex');
+}
+function createContentHash(obj: object): string {
+	const stableString = JSON.stringify(obj, Object.keys(obj).sort());
+	return sha256(Buffer.from(stableString));
+}
 
-	const { data: receipt, error: dbError } = await supabase
+const getReceiptQuery = (id: string) => {
+	return supabase
 		.from('receipts')
 		.select(
 			`
@@ -25,8 +35,20 @@ export const load: PageServerLoad = async ({ params }) => {
       )
     `
 		)
-		.eq('id', params.id)
+		.eq('id', id)
 		.single();
+};
+
+
+export const load: PageServerLoad = async ({ params }) => {
+	console.log(`Loading details for receipt ID: ${params.id}`);
+    const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
+
+    if (!bucketName) {
+        throw error(500, 'Supabase bucket name is not configured.');
+    }
+
+	const { data: receipt, error: dbError } = await getReceiptQuery(params.id);
 
 	if (dbError) {
 		console.error('Error fetching receipt details:', dbError);
@@ -37,26 +59,100 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(404, 'Receipt not found.');
 	}
 
-	// --- FIX: Generate a secure, signed URL for the image ---
-	// This is the correct way to access files in private buckets.
 	let imageUrl = null;
 	if (receipt.file_path) {
 		const { data, error: urlError } = await supabase.storage
-			.from('receipts') // Use the bucket name from your .env
-			.createSignedUrl(receipt.file_path, 60 * 5); // URL is valid for 5 minutes
+			.from(bucketName)
+			.createSignedUrl(receipt.file_path, 60 * 5); 
 
 		if (urlError) {
 			console.error('Error creating signed URL:', urlError);
-			// Don't block the page load, just means the image won't show.
 		} else {
 			imageUrl = data.signedUrl;
 		}
 	}
 
-	console.log('Receipt details loaded successfully.');
-
 	return {
 		receipt,
 		imageUrl
 	};
+};
+
+
+export const actions: Actions = {
+	/**
+	 * Reprocesses the receipt image to refresh its item data.
+	 */
+	reprocess: async ({ params }) => {
+		const receiptId = params.id;
+		const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
+
+		console.log(`Reprocessing receipt ID: ${receiptId}`);
+
+		const { data: originalReceipt, error: fetchError } = await supabase
+			.from('receipts')
+			.select('file_path')
+			.eq('id', receiptId)
+			.single();
+
+		if (fetchError || !originalReceipt || !originalReceipt.file_path) {
+			return fail(404, { message: 'Could not find original receipt file.' });
+		}
+		
+		try {
+			const { data: fileBlob, error: downloadError } = await supabase.storage
+				.from(bucketName)
+				.download(originalReceipt.file_path);
+			
+			if (downloadError) throw new Error(`Failed to download receipt image: ${downloadError.message}`);
+
+			const file = new File([fileBlob], originalReceipt.file_path.split('/').pop() || 'receipt.jpg', { type: fileBlob.type });
+
+			const aiResult = await ocrReceipt(file);
+			const validation = receiptZodSchema.safeParse(aiResult);
+
+			if (!validation.success) {
+				throw new Error(`AI validation failed: ${validation.error.message}`);
+			}
+			const { total, items } = validation.data;
+
+			const { error: deleteError } = await supabase
+				.from('receipt_items')
+				.delete()
+				.eq('receipt_id', receiptId);
+
+			if (deleteError) {
+				throw new Error(`Failed to delete old items: ${deleteError.message}`);
+			}
+
+			const newContentHash = createContentHash(validation.data);
+			const { error: updateError } = await supabase
+				.from('receipts')
+				.update({
+					total: total,
+					content_hash: newContentHash
+				})
+				.eq('id', receiptId);
+
+			if (updateError) {
+				throw new Error(`Failed to update receipt: ${updateError.message}`);
+			}
+			
+			await processAndSaveReceiptItems(supabase, receiptId, items);
+
+			// Re-fetch the entire receipt with the new data
+			const { data: updatedReceipt, error: refetchError } = await getReceiptQuery(receiptId);
+
+			if(refetchError) {
+				throw new Error(`Failed to refetch receipt data after update: ${refetchError.message}`);
+			}
+
+			return { success: true, message: 'Receipt reprocessed successfully!', updatedReceipt };
+
+		} catch (e) {
+			const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during reprocessing.';
+			console.error('Reprocessing failed:', errorMessage);
+			return fail(500, { message: errorMessage });
+		}
+	}
 };

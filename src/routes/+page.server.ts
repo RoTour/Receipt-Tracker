@@ -6,6 +6,7 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
 import type { Actions } from './$types';
 import { createHash } from 'crypto';
+import { processAndSaveReceiptItems } from '$lib/server/db_helpers';
 
 /**
  * Creates a SHA-256 hash from a buffer.
@@ -128,34 +129,9 @@ export const actions: Actions = {
 				if (receiptError) throw new Error(`Failed to create receipt: ${receiptError.message}`);
 				const receiptId = receiptRecord.id;
 
-				// 7. Process each receipt item
-				for (const item of items) {
-					// Find or Create the Product using upsert
-					const { data: product, error: productError } = await supabase
-						.from('products')
-						.upsert(
-							{
-								normalized_name: item.normalized_name,
-								brand: item.brand,
-								is_verified: false // is_verified will not be updated on conflict
-							},
-							{ onConflict: 'normalized_name, brand', ignoreDuplicates: false }
-						)
-						.select('id')
-						.single();
-					if (productError) throw new Error(`Failed to create product: ${productError.message}`);
-					const productId = product.id;
+				// 7. Process and save items using the new helper function
+				await processAndSaveReceiptItems(supabase, receiptId, items);
 
-					// Create the Receipt Item linking everything together
-					const { error: itemError } = await supabase.from('receipt_items').insert({
-						receipt_id: receiptId,
-						product_id: productId,
-						raw_text: item.raw_text,
-						quantity: item.quantity,
-						price: item.price
-					});
-					if (itemError) throw new Error(`Failed to create receipt item: ${itemError.message}`);
-				}
 				console.log(`Successfully processed and saved receipt with ID: ${receiptId}`);
 				processedReceipts.push(validation.data);
 			} catch (error) {

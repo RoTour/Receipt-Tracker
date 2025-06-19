@@ -126,7 +126,7 @@
                 {#each receipts.slice(0, 7) as receipt (receipt.id)}
                   <Table.Row
                     class="cursor-pointer hover:bg-muted/50"
-                    on:click={() => goto(`/dashboard/receipt/${receipt.id}`)}
+                    onclick={() => goto(`/dashboard/receipt/${receipt.id}`)}
                     aria-label="View receipt from {receipt.store_name ?? 'N/A'}"
                   >
                     <Table.Cell class="font-medium">{receipt.store_name ?? 'N/A'}</Table.Cell>

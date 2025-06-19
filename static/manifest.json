@@ -1,0 +1,25 @@
+{
+  "name": "Receipt Tracker",
+  "short_name": "RT",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "theme_color": "#ab307e",
+  "background_color": "#ab307e",
+  "icons": [
+    {
+      "sizes": "64x64",
+      "src": "pwa-64x64.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "192x192",
+      "src": "pwa-192x192.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "512x512",
+      "src": "pwa-512x512.png",
+      "type": "image/png"
+    }
+  ]
+}

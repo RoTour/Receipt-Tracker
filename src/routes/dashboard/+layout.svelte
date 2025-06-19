@@ -1,3 +1,4 @@
+<!-- src/routes/dashboard/+layout.svelte -->
 <script lang="ts">
 	import { Home, Package2, Search, Upload } from 'lucide-svelte';
 </script>

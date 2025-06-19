@@ -1,3 +1,4 @@
+<!-- src/routes/+page.svelte -->
 <script lang="ts">
 	// Import the FileUpload component we just created.
 	import FileUpload from '$lib/components/FileUpload.svelte';

@@ -1,3 +1,4 @@
+<!-- src/routes/dashboard/+page.svelte -->
 <script lang="ts">
 	import { ArrowUpRight, CreditCard, DollarSign, ReceiptText } from 'lucide-svelte';
 

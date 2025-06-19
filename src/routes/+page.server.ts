@@ -5,6 +5,27 @@ import { fail } from '@sveltejs/kit';
 import { env as publicEnv } from '$env/dynamic/public';
 import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
 import type { Actions } from './$types';
+import { createHash } from 'crypto';
+
+/**
+ * Creates a SHA-256 hash from a buffer.
+ * @param {Buffer} buffer - The buffer to hash.
+ * @returns {string} The SHA-256 hash as a hex string.
+ */
+function sha256(buffer: Buffer): string {
+	return createHash('sha256').update(buffer).digest('hex');
+}
+
+/**
+ * Creates a stable SHA-256 hash from a JavaScript object.
+ * It sorts the object keys to ensure the hash is consistent.
+ * @param {object} obj - The object to hash.
+ * @returns {string} The resulting SHA-256 hash.
+ */
+function createContentHash(obj: object): string {
+	const stableString = JSON.stringify(obj, Object.keys(obj).sort());
+	return sha256(Buffer.from(stableString));
+}
 
 export const actions: Actions = {
 	/**
@@ -14,8 +35,6 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const files = formData.getAll('receipts') as File[];
 		const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
-
-		console.log(`Upload action started for ${files.length} file(s).`);
 
 		if (!bucketName) {
 			return fail(500, {
@@ -27,78 +46,105 @@ export const actions: Actions = {
 		}
 
 		const processedReceipts = [];
+		const skippedFiles = [];
 
 		for (const file of files) {
 			console.log(`--- Processing file: ${file.name} ---`);
 			try {
-				// 1. Get structured data from AI
+				// 1. Calculate File Hash and check for exact duplicates
+				const fileBuffer = Buffer.from(await file.arrayBuffer());
+				const fileHash = sha256(fileBuffer);
+
+				const { data: existingFile } = await supabase
+					.from('receipts')
+					.select('id')
+					.eq('file_hash', fileHash)
+					.single();
+
+				if (existingFile) {
+					console.log(`Skipping file ${file.name} - already exists (file hash match).`);
+					skippedFiles.push({ name: file.name, reason: 'Duplicate file' });
+					continue;
+				}
+
+				// 2. Get structured data from AI
 				const aiResult = await ocrReceipt(file);
 				const validation = receiptZodSchema.safeParse(aiResult);
 				if (!validation.success) {
 					console.error('AI validation failed:', validation.error);
-					throw new Error('AI returned data in an unexpected format.');
+					throw new Error('AI result did not match the expected format.');
 				}
 				const { store_name, store_location, purchase_date, total, items } = validation.data;
 
-				// 2. Find or Create the Store
-				let storeId: string;
-				// The schema is now handled by the client, so we can simplify the call.
-				const { data: existingStore } = await supabase
-					.from('stores')
+				// 3. Calculate Content Hash and check for semantic duplicates
+				const contentHash = createContentHash(validation.data);
+				const { data: existingContent } = await supabase
+					.from('receipts')
 					.select('id')
-					.eq('name', store_name)
-					.eq('location', store_location)
-					.maybeSingle();
+					.eq('content_hash', contentHash)
+					.single();
 
-				if (existingStore) {
-					storeId = existingStore.id;
-					console.log(`Found existing store: ${store_name}`);
-				} else {
-					const { data: newStore, error: storeError } = await supabase
-						.from('stores')
-						.insert({ name: store_name, location: store_location })
-						.select('id')
-						.single();
-					if (storeError) throw new Error(`Failed to create store: ${storeError.message}`);
-					storeId = newStore.id;
-					console.log(`Created new store: ${store_name}`);
+				if (existingContent) {
+					console.log(`Skipping file ${file.name} - already exists (content hash match).`);
+					skippedFiles.push({ name: file.name, reason: 'Duplicate content' });
+					continue;
 				}
 
-				// 3. Upload the receipt image
-				const fileName = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
-				const { data: uploadData, error: uploadError } = await supabase.storage
+				// 4. Upload the original receipt image to Supabase Storage
+				const filePath = `public/${Date.now()}-${file.name}`;
+				const { error: uploadError } = await supabase.storage
 					.from(bucketName)
-					.upload(fileName, file);
-				if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+					.upload(filePath, file);
+				if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
 
-				// 4. Create the Receipt record
+				// 5. Find or create the store
+				const { data: store, error: storeError } = await supabase
+					.from('stores')
+					.upsert(
+						{
+							name: store_name,
+							location: store_location
+						},
+						{ onConflict: 'name, location', ignoreDuplicates: false }
+					)
+					.select('id')
+					.single();
+				if (storeError) throw new Error(`Failed to find/create store: ${storeError.message}`);
+				const storeId = store.id;
+
+				// 6. Create the main receipt record with the new hashes
 				const { data: receiptRecord, error: receiptError } = await supabase
 					.from('receipts')
 					.insert({
 						store_id: storeId,
-						purchase_date: purchase_date,
-						total: total,
-						file_path: uploadData.path
+						purchase_date,
+						total,
+						file_path: filePath,
+						file_hash: fileHash,
+						content_hash: contentHash
 					})
 					.select('id')
 					.single();
 				if (receiptError) throw new Error(`Failed to create receipt: ${receiptError.message}`);
 				const receiptId = receiptRecord.id;
 
-				// 5. Process each receipt item
+				// 7. Process each receipt item
 				for (const item of items) {
-					// Find or Create the Product
-					const { data: newProduct, error: productError } = await supabase
+					// Find or Create the Product using upsert
+					const { data: product, error: productError } = await supabase
 						.from('products')
-						.insert({
-							normalized_name: item.normalized_name,
-							brand: item.brand,
-							is_verified: false // Crucial for our curation workflow
-						})
+						.upsert(
+							{
+								normalized_name: item.normalized_name,
+								brand: item.brand,
+								is_verified: false // is_verified will not be updated on conflict
+							},
+							{ onConflict: 'normalized_name, brand', ignoreDuplicates: false }
+						)
 						.select('id')
 						.single();
 					if (productError) throw new Error(`Failed to create product: ${productError.message}`);
-					const productId = newProduct.id;
+					const productId = product.id;
 
 					// Create the Receipt Item linking everything together
 					const { error: itemError } = await supabase.from('receipt_items').insert({
@@ -119,10 +165,15 @@ export const actions: Actions = {
 			}
 		}
 
+		let message = `${processedReceipts.length} receipt(s) processed and saved successfully!`;
+		if (skippedFiles.length > 0) {
+			message += ` ${skippedFiles.length} file(s) were skipped as duplicates.`;
+		}
+
 		return {
 			success: true,
-			message: `${files.length} receipt(s) processed and saved successfully!`,
-			receipts: processedReceipts
+			message,
+			processedReceipts
 		};
 	}
 };

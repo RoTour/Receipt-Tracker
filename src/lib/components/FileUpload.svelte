@@ -1,3 +1,4 @@
+<!-- src/lib/components/FileUpload.svelte -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { fileUploadVM } from './FileUploadVM.svelte.ts';

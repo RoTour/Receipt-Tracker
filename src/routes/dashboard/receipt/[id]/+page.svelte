@@ -1,3 +1,4 @@
+<!-- src/routes/dashboard/receipt/[id]/+page.svelte -->
 <script lang="ts">
 	import { ArrowLeft } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button/index.js';

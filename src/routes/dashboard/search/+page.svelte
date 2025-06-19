@@ -1,3 +1,4 @@
+<!-- src/routes/dashboard/search/+page.svelte -->
 <script lang="ts">
 	import { goto, afterNavigate } from '$app/navigation';
 	import { Input } from '$lib/components/ui/input/index.js';

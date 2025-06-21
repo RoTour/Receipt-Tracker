@@ -3,12 +3,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { z } from 'zod';
 import type { receiptZodSchema } from './ai';
+import { generateProductKey } from './normalization';
 
 type ItemsArray = z.infer<typeof receiptZodSchema>['items'];
 
 /**
  * Processes and saves the items for a given receipt.
- * It finds or creates the canonical product and then creates the receipt_item record.
+ * It generates a normalized key for each product to robustly find or create a canonical product record.
  * @param supabase - The Supabase client instance.
  * @param receiptId - The UUID of the parent receipt.
  * @param items - The array of item objects from the AI.
@@ -24,28 +25,33 @@ export async function processAndSaveReceiptItems(
 	}
 
 	for (const item of items) {
-		// Find or Create the Product using upsert
+		// 1. Generate the robust normalized key for the product
+		const normalizedKey = generateProductKey(item.normalized_name, item.brand);
+
+		// 2. Find or Create the Product using the new normalized_key
+		// This is much more reliable than relying on name/brand alone.
 		const { data: product, error: productError } = await supabase
 			.from('products')
 			.upsert(
 				{
+					normalized_key: normalizedKey,
 					normalized_name: item.normalized_name,
 					brand: item.brand,
 					is_verified: false
 				},
-				{ onConflict: 'normalized_name, brand', ignoreDuplicates: false }
+				{ onConflict: 'normalized_key', ignoreDuplicates: false }
 			)
 			.select('id')
 			.single();
 
 		if (productError) {
 			throw new Error(
-				`Failed to create product '${item.normalized_name}': ${productError.message}`
+				`Failed to upsert product with key '${normalizedKey}': ${productError.message}`
 			);
 		}
 		const productId = product.id;
 
-		// Create the Receipt Item linking everything together
+		// 3. Create the Receipt Item, linking everything together
 		const { error: itemError } = await supabase.from('receipt_items').insert({
 			receipt_id: receiptId,
 			product_id: productId,

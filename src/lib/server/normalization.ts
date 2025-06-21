@@ -11,23 +11,20 @@ function unaccent(str: string): string {
 }
 
 /**
- * Generates a stable, normalized key from a product name and brand.
+ * Generates a stable, normalized key from a single text string.
  * This key is used for reliably identifying duplicate products.
  * The process: lowercase -> unaccent -> split into words -> sort words -> join.
- * @param {string} name - The normalized name of the product.
- * @param {string | undefined} brand - The brand of the product.
+ * @param {string} text - The text to normalize, typically the raw_text from a receipt.
  * @returns {string} The generated normalized key.
  */
-export function generateProductKey(name: string, brand?: string): string {
-	// Combine name and brand, and handle potential undefined values
-	const combinedText = [name, brand].filter(Boolean).join(' ');
-
+export function generateProductKey(text: string): string {
 	// 1. Convert to lowercase and remove accents
-	const processedText = unaccent(combinedText.toLowerCase());
+	const processedText = unaccent(text.toLowerCase());
 
-	// 2. Split into words, filter out empty strings, sort, and join
+	// 2. Split into words using a regex that handles various separators,
+	// filter out empty strings, sort, and join.
 	const key = processedText
-		.split(/\s+/)
+		.split(/[\s-./,]+/) // Split on whitespace, hyphens, dots, slashes, commas
 		.filter((word) => word.length > 0)
 		.sort()
 		.join(' ');

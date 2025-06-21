@@ -9,7 +9,7 @@ type ItemsArray = z.infer<typeof receiptZodSchema>['items'];
 
 /**
  * Processes and saves the items for a given receipt.
- * It generates a normalized key for each product to robustly find or create a canonical product record.
+ * It generates a normalized key from the item's raw_text to robustly find or create a canonical product record.
  * @param supabase - The Supabase client instance.
  * @param receiptId - The UUID of the parent receipt.
  * @param items - The array of item objects from the AI.
@@ -25,16 +25,17 @@ export async function processAndSaveReceiptItems(
 	}
 
 	for (const item of items) {
-		// 1. Generate the robust normalized key for the product
-		const normalizedKey = generateProductKey(item.normalized_name, item.brand);
+		// 1. Generate the robust normalized key directly from the raw_text.
+		// This is more reliable than using the AI's separated name/brand fields.
+		const normalizedKey = generateProductKey(item.raw_text);
 
 		// 2. Find or Create the Product using the new normalized_key
-		// This is much more reliable than relying on name/brand alone.
 		const { data: product, error: productError } = await supabase
 			.from('products')
 			.upsert(
 				{
 					normalized_key: normalizedKey,
+					// We still save the AI's best guess for the display name and brand.
 					normalized_name: item.normalized_name,
 					brand: item.brand,
 					is_verified: false

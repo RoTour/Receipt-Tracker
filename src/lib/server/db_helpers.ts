@@ -10,6 +10,7 @@ type ItemsArray = z.infer<typeof receiptZodSchema>['items'];
 /**
  * Processes and saves the items for a given receipt.
  * It generates a normalized key from the item's raw_text to robustly find or create a canonical product record.
+ * It now uses an in-memory map to prevent duplicate database calls for the same product within a single receipt.
  * @param supabase - The Supabase client instance.
  * @param receiptId - The UUID of the parent receipt.
  * @param items - The array of item objects from the AI.
@@ -24,35 +25,44 @@ export async function processAndSaveReceiptItems(
 		return;
 	}
 
+	// In-memory cache to track product IDs for keys processed in this run.
+	const processedProductKeys = new Map<string, string>();
+
 	for (const item of items) {
-		// 1. Generate the robust normalized key directly from the raw_text.
-		// This is more reliable than using the AI's separated name/brand fields.
 		const normalizedKey = generateProductKey(item.raw_text);
+		let productId: string;
 
-		// 2. Find or Create the Product using the new normalized_key
-		const { data: product, error: productError } = await supabase
-			.from('products')
-			.upsert(
-				{
-					normalized_key: normalizedKey,
-					// We still save the AI's best guess for the display name and brand.
-					normalized_name: item.normalized_name,
-					brand: item.brand,
-					is_verified: false
-				},
-				{ onConflict: 'normalized_key', ignoreDuplicates: false }
-			)
-			.select('id')
-			.single();
+		// Check if we've already processed this product key for this receipt
+		if (processedProductKeys.has(normalizedKey)) {
+			productId = processedProductKeys.get(normalizedKey)!;
+		} else {
+			// If not, hit the database to find or create the product
+			const { data: product, error: productError } = await supabase
+				.from('products')
+				.upsert(
+					{
+						normalized_key: normalizedKey,
+						normalized_name: item.normalized_name,
+						brand: item.brand,
+						is_verified: false
+					},
+					{ onConflict: 'normalized_key', ignoreDuplicates: false }
+				)
+				.select('id')
+				.single();
 
-		if (productError) {
-			throw new Error(
-				`Failed to upsert product with key '${normalizedKey}': ${productError.message}`
-			);
+			if (productError) {
+				throw new Error(
+					`Failed to upsert product with key '${normalizedKey}': ${productError.message}`
+				);
+			}
+			
+			productId = product.id;
+			// Cache the result for subsequent items in the same receipt
+			processedProductKeys.set(normalizedKey, productId);
 		}
-		const productId = product.id;
 
-		// 3. Create the Receipt Item, linking everything together
+		// Create the Receipt Item, linking everything together
 		const { error: itemError } = await supabase.from('receipt_items').insert({
 			receipt_id: receiptId,
 			product_id: productId,

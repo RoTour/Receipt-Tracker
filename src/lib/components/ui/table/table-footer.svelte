@@ -7,14 +7,15 @@
 		class: className,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
-<tfoot
+<div
 	bind:this={ref}
 	data-slot="table-footer"
-	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
+	role="rowgroup"
+	class={cn("bg-muted/50 border-t font-medium [&>[role=row]]:last:border-b-0", className)}
 	{...restProps}
 >
 	{@render children?.()}
-</tfoot>
+</div>

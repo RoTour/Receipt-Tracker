@@ -12,12 +12,8 @@
 
 <div
 	bind:this={ref}
-	data-slot="table-row"
-	role="row"
-	class={cn(
-		"hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors grid",
-		className
-	)}
+	data-slot="dialog-footer"
+	class={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
 	{...restProps}
 >
 	{@render children?.()}

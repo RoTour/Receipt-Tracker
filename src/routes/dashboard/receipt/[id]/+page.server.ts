@@ -25,13 +25,13 @@ const getReceiptQuery = (id: string) => {
       total,
       purchase_date,
       file_path,
-      stores ( name, location ),
+      stores ( id, name, location ),
       receipt_items (
         id,
         raw_text,
         quantity,
         price,
-        products ( normalized_name, brand )
+        products ( id, normalized_name, brand )
       )
     `
 		)
@@ -211,6 +211,76 @@ export const actions: Actions = {
 				e instanceof Error ? e.message : 'An unknown error occurred during the update.';
 			console.error('Store update failed:', errorMessage);
 			return fail(500, { success: false, message: errorMessage });
+		}
+	},
+
+	updateItem: async ({ request, params }) => {
+		const receiptId = params.id;
+		const formData = await request.formData();
+		const receiptItemId = formData.get('receipt_item_id') as string;
+		const quantity = parseFloat(formData.get('quantity') as string);
+		const price = parseFloat(formData.get('price') as string);
+
+		if (isNaN(quantity) || isNaN(price)) {
+			return fail(400, { success: false, message: 'Invalid quantity or price.' });
+		}
+
+		try {
+			const { error: updateError } = await supabase
+				.from('receipt_items')
+				.update({ quantity, price })
+				.eq('id', receiptItemId);
+
+			if (updateError) throw new Error(`Failed to update item: ${updateError.message}`);
+
+			const { data: items } = await supabase
+				.from('receipt_items')
+				.select('price')
+				.eq('receipt_id', receiptId);
+
+			const newTotal = items?.reduce((acc, item) => acc + item.price, 0) ?? 0;
+
+			const { error: receiptUpdateError } = await supabase
+				.from('receipts')
+				.update({ total: newTotal })
+				.eq('id', receiptId);
+
+			if (receiptUpdateError) throw new Error('Failed to update receipt total.');
+
+			const { data: updatedReceipt } = await getReceiptQuery(receiptId);
+
+			return { success: true, message: 'Item updated!', updatedReceipt };
+		} catch (e) {
+			const message = e instanceof Error ? e.message : 'Unknown error';
+			return fail(500, { success: false, message });
+		}
+	},
+
+	renameProduct: async ({ request, params }) => {
+		const receiptId = params.id;
+		const formData = await request.formData();
+		const productId = formData.get('product_id') as string;
+		const normalized_name = formData.get('normalized_name') as string;
+		const brand = formData.get('brand') as string;
+
+		if (!productId || !normalized_name) {
+			return fail(400, { success: false, message: 'Product ID and name are required.' });
+		}
+
+		try {
+			const { error: updateError } = await supabase
+				.from('products')
+				.update({ normalized_name, brand })
+				.eq('id', productId);
+
+			if (updateError) throw new Error(`Failed to rename product: ${updateError.message}`);
+
+			const { data: updatedReceipt } = await getReceiptQuery(receiptId);
+
+			return { success: true, message: 'Product renamed!', updatedReceipt };
+		} catch (e) {
+			const message = e instanceof Error ? e.message : 'Unknown error';
+			return fail(500, { success: false, message });
 		}
 	}
 };

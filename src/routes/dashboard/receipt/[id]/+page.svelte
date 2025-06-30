@@ -4,15 +4,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import { ArrowLeft, RefreshCw, Pencil } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
+	import ReceiptItemsTable from '$lib/components/receipt/ReceiptItemsTable.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
-	// The receipt object is now mutable so we can update it from the form action result.
-	let { receipt, imageUrl, stores } = data;
-
-	let receiptItems = $derived(receipt.receipt_items);
+	let { receipt, imageUrl, stores } = $derived(data);
 
 	let isReprocessing = $state(false);
 	let isEditingStore = $state(false);
@@ -33,16 +30,6 @@
 			use:enhance={() => {
 				isReprocessing = true;
 				return async ({ result, update }) => {
-					// Manually handle the form result update
-					if (result.type === 'success' && result.data?.success) {
-						// As you suggested, we now get the updated receipt from the action.
-						// We directly assign it to our local `receipt` variable to update the UI.
-						receipt = result.data.updatedReceipt;
-						receiptItems = result.data.updatedReceipt?.receipt_items;
-					}
-
-					// We need to call `update` to apply the result to the `form` prop
-					// and prevent the default full-page reload.
 					await update({ reset: false });
 					isReprocessing = false;
 				};
@@ -76,7 +63,6 @@
 						use:enhance={() => {
 							return async ({ result, update }) => {
 								if (result.type === 'success' && result.data?.success) {
-									receipt = result.data.updatedReceipt;
 									isEditingStore = false;
 								}
 								await update({ reset: false });
@@ -85,9 +71,9 @@
 						class="space-y-4"
 					>
 						<select
-              name="storeId"
-              class="border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-            >
+							name="storeId"
+							class="border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+						>
 							{#each stores as store}
 								<option value={store.id} selected={store.id === receipt.stores?.id}>
 									{store.name} - {store.location}
@@ -134,36 +120,7 @@
 					</div>
 				</div>
 				<Separator />
-				{#if receiptItems.length > 0}
-					<Table.Root class="w-full table-fixed">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head class="w-[65%]">Item</Table.Head>
-								<Table.Head class="w-[15%] text-right">Qty</Table.Head>
-								<Table.Head class="w-[20%] text-right">Price</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each receiptItems as item (item.id)}
-								<Table.Row>
-									<Table.Cell>
-										<div class="truncate font-medium">
-											{item.products?.normalized_name ?? 'N/A'}
-										</div>
-										<div class="text-muted-foreground truncate text-xs">{item.raw_text}</div>
-									</Table.Cell>
-									<Table.Cell class="text-right">{item.quantity}</Table.Cell>
-									<Table.Cell class="text-right font-mono">€{item.price.toFixed(2)}</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				{:else}
-					<div class="text-muted-foreground rounded-md border border-dashed py-10 text-center">
-						<p>No items were found on this receipt.</p>
-						<p class="mt-1 text-xs">Try reprocessing to scan the image again.</p>
-					</div>
-				{/if}
+				<ReceiptItemsTable items={receipt.receipt_items} />
 			</Card.Content>
 		</Card.Root>
 		<Card.Root class="lg:col-span-3">
@@ -190,3 +147,4 @@
 		</Card.Root>
 	</div>
 </main>
+

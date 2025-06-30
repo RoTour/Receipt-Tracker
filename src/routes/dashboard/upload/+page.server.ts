@@ -120,7 +120,10 @@ export const actions: Actions = {
 					})
 					.select('id')
 					.single();
-				if (receiptError) throw new Error(`Failed to create receipt: ${receiptError.message}`);
+				if (receiptError) {
+					console.error(receiptError)
+					throw new Error(`Failed to create receipt: ${receiptError.message}`);
+				};
 				const receiptId = receiptRecord.id;
 
 				await processAndSaveReceiptItems(supabase, receiptId, items);

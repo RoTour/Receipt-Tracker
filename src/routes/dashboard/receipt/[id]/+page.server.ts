@@ -71,9 +71,18 @@ export const load: PageServerLoad = async ({ params }) => {
 		}
 	}
 
+	const { data: stores, error: storesError } = await supabase.from('stores').select('id, name, location');
+
+	if (storesError) {
+		console.error('Error fetching stores:', storesError);
+		// Not throwing an error here, as the page can still be useful without the stores list.
+	}
+
+
 	return {
 		receipt,
-		imageUrl
+		imageUrl,
+		stores: stores ?? []
 	};
 };
 
@@ -156,6 +165,52 @@ export const actions: Actions = {
 				e instanceof Error ? e.message : 'An unknown error occurred during reprocessing.';
 			console.error('Reprocessing failed:', errorMessage);
 			return fail(500, { message: errorMessage });
+		}
+	},
+
+	/**
+	 * Updates the store associated with the receipt.
+	 */
+	updateStore: async ({ request, params }) => {
+		const receiptId = params.id;
+		const formData = await request.formData();
+		const storeId = formData.get('storeId') as string;
+
+		if (!storeId) {
+			return fail(400, { success: false, message: 'No store was selected.' });
+		}
+
+		console.log(`Updating store for receipt ${receiptId} to store ${storeId}`);
+
+		try {
+			const { error: updateError } = await supabase
+				.from('receipts')
+				.update({ store_id: storeId })
+				.eq('id', receiptId);
+
+			if (updateError) {
+				throw new Error(`Failed to update store: ${updateError.message}`);
+			}
+
+			// Re-fetch the receipt data to get the updated store name
+			const { data: updatedReceipt, error: refetchError } = await getReceiptQuery(receiptId);
+
+			if (refetchError) {
+				throw new Error(
+					`Failed to refetch receipt data after store update: ${refetchError.message}`
+				);
+			}
+
+			return {
+				success: true,
+				message: 'Store updated successfully!',
+				updatedReceipt
+			};
+		} catch (e) {
+			const errorMessage =
+				e instanceof Error ? e.message : 'An unknown error occurred during the update.';
+			console.error('Store update failed:', errorMessage);
+			return fail(500, { success: false, message: errorMessage });
 		}
 	}
 };

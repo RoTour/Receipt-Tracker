@@ -18,10 +18,9 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 	auth: {
-		// For server-side operations, it's crucial to disable auto-refreshing tokens
-		// and persisting the session, as we are not dealing with a user session here.
-		autoRefreshToken: false,
-		persistSession: false
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
 	},
 	// Configure the database schema for all subsequent requests.
 	// This is the correct, type-safe way to specify a schema.

@@ -5,16 +5,17 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { ArrowLeft, RefreshCw } from 'lucide-svelte';
+	import { ArrowLeft, RefreshCw, Pencil } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	// The receipt object is now mutable so we can update it from the form action result.
-	let { receipt, imageUrl } = data;
+	let { receipt, imageUrl, stores } = data;
 
 	let receiptItems = $derived(receipt.receipt_items);
 
 	let isReprocessing = $state(false);
+	let isEditingStore = $state(false);
 </script>
 
 <main class="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -67,11 +68,53 @@
 
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
 		<Card.Root class="lg:col-span-4">
-			<Card.Header>
-				<Card.Title>{receipt.stores?.name ?? 'Unknown Store'}</Card.Title>
-				<Card.Description>
-					{receipt.stores?.location ?? 'No location specified'}
-				</Card.Description>
+			<Card.Header class="relative">
+				{#if isEditingStore}
+					<form
+						method="POST"
+						action="?/updateStore"
+						use:enhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'success' && result.data?.success) {
+									receipt = result.data.updatedReceipt;
+									isEditingStore = false;
+								}
+								await update({ reset: false });
+							};
+						}}
+						class="space-y-4"
+					>
+						<select
+              name="storeId"
+              class="border-input bg-background selection:bg-primary dark:bg-input/30 selection:text-primary-foreground ring-offset-background placeholder:text-muted-foreground shadow-xs flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            >
+							{#each stores as store}
+								<option value={store.id} selected={store.id === receipt.stores?.id}>
+									{store.name} - {store.location}
+								</option>
+							{/each}
+						</select>
+						<div class="flex justify-end gap-2">
+							<Button type="button" variant="ghost" onclick={() => (isEditingStore = false)}>
+								Cancel
+							</Button>
+							<Button type="submit">Save</Button>
+						</div>
+					</form>
+				{:else}
+					<Button
+						variant="ghost"
+						size="icon"
+						class="absolute right-2 top-2"
+						onclick={() => (isEditingStore = true)}
+					>
+						<Pencil class="h-4 w-4" />
+					</Button>
+					<Card.Title>{receipt.stores?.name ?? 'Unknown Store'}</Card.Title>
+					<Card.Description>
+						{receipt.stores?.location ?? 'No location specified'}
+					</Card.Description>
+				{/if}
 			</Card.Header>
 			<Card.Content class="grid gap-4">
 				<div class=" flex items-center space-x-4 rounded-md border p-4">

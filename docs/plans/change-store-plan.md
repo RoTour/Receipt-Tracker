@@ -1,3 +1,9 @@
+---
+Status: Done
+---
+
+# Change Store Plan
+
 Here is a plan to add the ability to change the store on the receipt details page:
 
 1.  **Backend - `+page.server.ts` (`/src/routes/dashboard/receipt/[id]/`):**

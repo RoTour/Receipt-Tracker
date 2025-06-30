@@ -1,6 +1,6 @@
 <!-- src/routes/dashboard/+layout.svelte -->
 <script lang="ts">
-  import { Home, Menu, Package2, ScanLine, Search, Upload, X } from 'lucide-svelte';
+  import { Home, Menu, Package2, ScanLine, Search, Upload, X, Store } from 'lucide-svelte';
   import { Button } from '$lib/components/ui/button/index.js';
   import { fly, fade } from 'svelte/transition';
 
@@ -40,6 +40,13 @@
           >
             <Search class="h-4 w-4" />
             Search
+          </a>
+          <a
+            href="/dashboard/stores"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+          >
+            <Store class="h-4 w-4" />
+            Stores
           </a>
         </nav>
       </div>
@@ -128,6 +135,14 @@
       >
         <Search class="h-5 w-5" />
         Search
+      </a>
+      <a
+        href="/dashboard/stores"
+        class="flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+        onclick={() => (isMobileMenuOpen = false)}
+      >
+        <Store class="h-5 w-5" />
+        Stores
       </a>
     </nav>
   </aside>

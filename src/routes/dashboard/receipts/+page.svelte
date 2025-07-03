@@ -9,7 +9,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	const { receipts, count, page, perPage, query } = data;
+	let { receipts, count, page, perPage, query } = $derived(data);
 
 	let searchInput = $state(query);
 	let container: HTMLDivElement;
@@ -20,7 +20,7 @@
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
 			const url = new URL(window.location.href);
-			url.searchParams.set('query', searchInput);
+			url.searchParams.set('query', searchInput ?? '');
 			url.searchParams.set('page', '1'); // Reset to first page on new search
 			goto(url, { replaceState: true, keepFocus: true });
 		}, 300);
@@ -65,7 +65,7 @@
 		return `${weekday} ${day}${getOrdinalSuffix(day)} ${month}`;
 	}
 
-	const totalPages = Math.ceil(count / perPage);
+	let totalPages = $derived(Math.ceil(count / perPage));
 </script>
 
 <main class="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -139,7 +139,7 @@
 							{/each}
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={3} class="h-24 text-center">
+								<Table.Cell colspan="3" class="h-24 text-center">
 									No receipts found.
 								</Table.Cell>
 							</Table.Row>

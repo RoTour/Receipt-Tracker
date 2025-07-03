@@ -55,6 +55,13 @@
             <Store class="h-4 w-4" />
             Stores
           </a>
+          <a
+            href="/dashboard/stores/merge"
+            class="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+          >
+            <Store class="h-4 w-4" />
+            Merge Stores
+          </a>
         </nav>
       </div>
     </div>
@@ -158,6 +165,14 @@
       >
         <Store class="h-5 w-5" />
         Stores
+      </a>
+      <a
+        href="/dashboard/stores/merge"
+        class="flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+        onclick={() => (isMobileMenuOpen = false)}
+      >
+        <Store class="h-5 w-5" />
+        Merge Stores
       </a>
     </nav>
   </aside>

@@ -31,3 +31,26 @@ export function generateProductKey(text: string): string {
 
 	return key;
 }
+
+/**
+ * Generates a stable, normalized key from a store's name and location.
+ * This key is used for reliably identifying duplicate stores.
+ * @param name The store's name.
+ * @param location The store's location.
+ * @returns The generated normalized key.
+ */
+export function generateStoreKey(name: string, location: string | undefined): string {
+	const namePart = unaccent(name.toLowerCase())
+		.replace(/[.,\/#!$%\^&*;:{}=\-_`~()]/g, '')
+		.split(/\s+/)
+		.join('');
+
+	const locationPart = location
+		? unaccent(location.toLowerCase())
+				.replace(/[.,\/#!$%\^&*;:{}=\-_`~()]/g, '')
+				.split(/\s+/)
+				.join('')
+		: '';
+
+	return `${namePart}${locationPart}`;
+}

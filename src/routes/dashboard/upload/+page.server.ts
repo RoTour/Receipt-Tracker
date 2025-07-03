@@ -7,6 +7,7 @@ import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
 import type { Actions } from './$types';
 import { createHash } from 'crypto';
 import { processAndSaveReceiptItems } from '$lib/server/db_helpers';
+import { generateStoreKey } from '$lib/server/normalization';
 
 /**
  * Creates a SHA-256 hash from a buffer.
@@ -94,14 +95,17 @@ export const actions: Actions = {
 					.upload(filePath, file);
 				if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
 
+				const storeKey = generateStoreKey(store_name, store_location);
+
 				const { data: store, error: storeError } = await supabase
 					.from('stores')
 					.upsert(
 						{
+							normalized_key: storeKey,
 							name: store_name,
 							location: store_location
 						},
-						{ onConflict: 'name, location', ignoreDuplicates: false }
+						{ onConflict: 'normalized_key', ignoreDuplicates: false }
 					)
 					.select('id')
 					.single();

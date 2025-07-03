@@ -6,9 +6,11 @@ create table
     id uuid not null default gen_random_uuid (),
     name text not null,
     location text null,
+    normalized_key text null,
     created_at timestamp with time zone not null default now(),
     constraint stores_pkey primary key (id),
-    constraint stores_name_location_key unique (name, location)
+    constraint stores_name_location_key unique (name, location),
+    constraint stores_normalized_key_key unique (normalized_key)
   ) tablespace pg_default;
 
 create table
@@ -57,5 +59,20 @@ create table
     constraint receipt_items_receipt_id_fkey foreign key (receipt_id) references "rtdev".receipts (id) on delete cascade,
     constraint receipt_items_product_id_fkey foreign key (product_id) references "rtdev".products (id)
   ) tablespace pg_default;
+
+
+CREATE OR REPLACE FUNCTION get_potential_duplicate_stores()
+RETURNS TABLE (name text, stores jsonb)
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    s.name,
+    jsonb_agg(jsonb_build_object('id', s.id, 'location', s.location))
+  FROM rtdev.stores s
+  GROUP BY s.name
+  HAVING count(*) > 1;
+END;
+$$ LANGUAGE plpgsql;
 
 

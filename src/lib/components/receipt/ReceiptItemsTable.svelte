@@ -34,7 +34,7 @@
 		<Table.Body>
 			{#each items as item (item.id)}
 				<ContextMenu.Root>
-					<ContextMenu.Trigger asChild>
+					<ContextMenu.Trigger>
 						<Table.Row class="cursor-pointer select-none active:bg-muted/75 grid-cols-[65%_15%_20%]">
 							<Table.Cell>
 								<div class="truncate font-medium">

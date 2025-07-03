@@ -1,3 +1,4 @@
+<!-- src/lib/components/ui/table/table-row.svelte -->
 <script lang="ts">
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
@@ -6,8 +7,11 @@
 		ref = $bindable(null),
 		class: className,
 		children,
+		gridCols = "",
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
+		gridCols?: string;
+	} = $props();
 </script>
 
 <div
@@ -16,6 +20,7 @@
 	role="row"
 	class={cn(
 		"hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors grid",
+		gridCols,
 		className
 	)}
 	{...restProps}

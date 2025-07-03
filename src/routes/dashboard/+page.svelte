@@ -143,40 +143,35 @@
 						{/if}
 					</div>
 
-					<!-- Desktop Table View (unchanged) -->
+					<!-- Desktop List View -->
 					<div class="hidden md:block">
-						<Table.Root>
-							<Table.Header>
-								<Table.Row>
-									<Table.Head class="w-[50%]">Store</Table.Head>
-									<Table.Head class="w-[20%] text-right">Total</Table.Head>
-									<Table.Head class="w-[30%] text-right">Date</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
+						<div class="flow-root">
+							<div class="-m-6 divide-y">
 								{#if receipts && receipts.length > 0}
 									{#each receipts.slice(0, 7) as receipt (receipt.id)}
-										<Table.Row
-											class="cursor-pointer"
-											onclick={() => goto(`/dashboard/receipt/${receipt.id}`)}
+										<a
+											href="/dashboard/receipt/{receipt.id}"
+											class="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-4 p-6 transition-colors hover:bg-muted/50"
 											aria-label="View receipt from {receipt.store_name ?? 'N/A'}"
 										>
-											<Table.Cell class="font-medium">{receipt.store_name ?? 'N/A'}</Table.Cell>
-											<Table.Cell class="text-right"
-												>€{(receipt.total ?? 0).toFixed(2)}</Table.Cell
-											>
-											<Table.Cell class="text-right">
-												{formatPrettyDate(receipt.purchase_date)}
-											</Table.Cell>
-										</Table.Row>
+											<div>
+												<p class="truncate font-medium">{receipt.store_name ?? 'N/A'}</p>
+												<p class="text-sm text-muted-foreground">
+													{formatPrettyDate(receipt.purchase_date)}
+												</p>
+											</div>
+											<div class="text-right">
+												<p class="font-mono text-lg font-semibold">
+													€{(receipt.total ?? 0).toFixed(2)}
+												</p>
+											</div>
+										</a>
 									{/each}
 								{:else}
-									<Table.Row>
-										<Table.Cell colspan={3} class="text-center">No receipts found.</Table.Cell>
-									</Table.Row>
+									<div class="p-6 text-center text-muted-foreground">No receipts found.</div>
 								{/if}
-							</Table.Body>
-						</Table.Root>
+							</div>
+						</div>
 					</div>
 				</Card.Content>
 			</Card.Root>

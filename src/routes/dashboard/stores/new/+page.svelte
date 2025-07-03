@@ -13,7 +13,7 @@
 
 <main class="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
 	<div class="flex items-center gap-4">
-		<Button href="/dashboard/stores" variant="outline" size="icon" class="h-7 w-7">
+		<Button href="/dashboard/stores" variant="outline" size="icon">
 			<ArrowLeft class="h-4 w-4" />
 			<span class="sr-only">Back to Stores</span>
 		</Button>

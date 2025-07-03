@@ -12,7 +12,7 @@
 	class={cn("absolute left-4 top-4", className)}
 	{...restProps}
 >
-	<Button variant="ghost" size="icon" class="h-7 w-7">
+	<Button variant="ghost" size="icon" class="h-9 w-9">
 		<ChevronLeft class="h-4 w-4" />
 	</Button>
 	{@render children()}

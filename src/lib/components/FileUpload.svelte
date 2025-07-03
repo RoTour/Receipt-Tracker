@@ -87,7 +87,7 @@
 					<ul class="mt-2 space-y-2">
 						{#each fileUploadVM.selectedFiles as file, i (file.name + file.lastModified)}
 							<li
-								class="bg-muted/20 animate-in fade-in flex items-center justify-between rounded-md border p-2"
+								class="bg-muted/20 animate-in fade-in flex items-center justify-between rounded-lg border p-3"
 							>
 								<span class="truncate pr-4 font-mono text-sm">{file.name}</span>
 								<Button

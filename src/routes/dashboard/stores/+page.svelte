@@ -108,10 +108,10 @@
 							{/each}
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan="3" class="h-24 text-center">
+								<Table.Cell class="h-24 text-center">
 									No stores found.
 								</Table.Cell>
-								</Table.Row>
+							</Table.Row>
 							{/if}
 					</Table.Body>
 				</Table.Root>

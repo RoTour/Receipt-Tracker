@@ -16,6 +16,15 @@ function calculatePercentageChange(current: number, previous: number): number {
 	return ((current - previous) / previous) * 100;
 }
 
+const defaultData = {
+	receipts: [],
+	stats: {
+		totalSpent: { value: 0, change: 0 },
+		averageSpent: { value: 0, change: 0 },
+		totalReceipts: { value: 0, change: 0 }
+	}
+}
+
 export const load: PageServerLoad = async () => {
 	console.log('Loading dashboard data with new schema...');
 	// Fetch all receipts and join with the stores table to get the store name.
@@ -27,18 +36,11 @@ export const load: PageServerLoad = async () => {
 	if (error) {
 		console.error('Error fetching receipts with new schema:', error);
 		// Return a default structure in case of a database error.
-		return {
-			receipts: [],
-			stats: {
-				totalSpent: { value: 0, change: 0 },
-				averageSpent: { value: 0, change: 0 },
-				totalReceipts: { value: 0, change: 0 }
-			}
-		};
+		return defaultData;
 	}
 
 	if (!allReceipts) {
-		return { receipts: [], stats: {} };
+		return defaultData;
 	}
 
 	// Calculate statistics for the last 30 days vs the 30 days before that.
@@ -90,6 +92,7 @@ export const load: PageServerLoad = async () => {
 		purchase_date: r.purchase_date,
 		total: r.total,
 		// Supabase join syntax creates a nested object.
+		// It is not an array but an object with a name property.
 		store_name: r.stores?.name ?? 'Unknown Store'
 	}));
 

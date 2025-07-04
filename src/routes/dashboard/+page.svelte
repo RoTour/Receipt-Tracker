@@ -4,8 +4,6 @@
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import { goto } from '$app/navigation';
 
 	import type { PageData } from './$types';
 

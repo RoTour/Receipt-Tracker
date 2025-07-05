@@ -1,5 +1,5 @@
 ---
-Status: To Do
+Status: Completed
 ---
 
 Here is the plan to implement the dedicated store management page:

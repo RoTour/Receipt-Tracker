@@ -1,5 +1,5 @@
 ---
-Status: To Do
+Status: Completed
 ---
 
 # View All Receipts Plan

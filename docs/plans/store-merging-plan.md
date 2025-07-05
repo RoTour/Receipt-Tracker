@@ -1,5 +1,5 @@
 ---
-Status: To Do
+Status: Completed
 ---
 
 # Store Merging Feature Plan

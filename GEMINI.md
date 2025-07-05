@@ -86,3 +86,10 @@ The schema consists of four main tables:
 ### **5. Technical Metadata**
 
 * **Ownership & Permissions:** All tables and functions are owned by `supabase_admin`. Broad `SELECT`, `INSERT`, `UPDATE`, `DELETE` permissions are granted to Supabase's standard roles (`anon`, `authenticated`, `service_role`), indicating this schema is for a Supabase project.
+
+---
+
+### **6. Technical Instructions**
+
+When changes are needed on the database, write the SQL queries in a .sql file under `docs/[feature]/[feature].sql`.
+Assume the database is already set up and running.

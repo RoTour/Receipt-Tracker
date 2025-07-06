@@ -10,8 +10,8 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
-	const { stores } = data;
+	let { data = $bindable() }: { data: PageData } = $props();
+	let stores = $derived(data.stores);
 
 	let isSelectionMode = $state(false);
 	let selectedStoreIds = $state(new SvelteSet<string>());
@@ -54,7 +54,8 @@
 		primaryStoreId = null;
 	}
 
-	function setAsPrimary(storeId: string) {
+	function setAsPrimary(event: Event, storeId: string) {
+		e.stopPropagation();
 		primaryStoreId = storeId;
 	}
 
@@ -64,45 +65,135 @@
 </script>
 
 <main class="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-	<div class="flex items-center">
+	<div class="flex items-center gap-2">
 		<div>
 			<h1 class="text-2xl font-bold">Store Management</h1>
 			<p class="text-muted-foreground">Create, view, and edit your store locations.</p>
 		</div>
 		<div class="ml-auto flex items-center gap-2">
 			{#if !isSelectionMode}
-				<Button href="/dashboard/stores/new" size="sm">
+				<Button href="/dashboard/stores/new" size="sm" class="hidden sm:flex">
 					<PlusCircle class="mr-2 h-4 w-4" />
 					Add New Store
 				</Button>
-				<Button variant="outline" size="sm" onclick={() => (isSelectionMode = true)}>
+				<Button href="/dashboard/stores/new" size="icon" class="sm:hidden">
+					<PlusCircle class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => (isSelectionMode = true)}
+					class="hidden sm:flex"
+				>
 					<Merge class="mr-2 h-4 w-4" />
 					Merge Stores
+				</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					onclick={() => (isSelectionMode = true)}
+					class="sm:hidden"
+				>
+					<Merge class="h-4 w-4" />
 				</Button>
 			{/if}
 		</div>
 	</div>
 
-	<Card.Root class="py-0">
-		<Card.Content class="px-0 pt-0 md:px-6 md:pt-6">
+	<Card.Root class="pt-0 mb-24">
+		<Card.Content class="p-0">
+			<!-- Mobile-friendly List View -->
+			<div class="block md:hidden">
+				{#if stores && stores.length > 0}
+					{#each stores as store (store.id)}
+						<div
+							role="button"
+							tabindex="0"
+							onclick={() => handleRowClick(store.id)}
+							onkeydown={(e) => e.key === 'Enter' && handleRowClick(store.id)}
+							oncontextmenu={(e) => startSelectionMode(store.id, e)}
+							class="block border-b p-4 transition-colors last:border-b-0 {isSelectionMode
+								? ''
+								: 'hover:bg-muted/50'} {primaryStoreId === store.id
+								? 'bg-green-100 dark:bg-green-900/30'
+								: ''}"
+							aria-label="Select or edit store {store.name ?? 'N/A'}"
+						>
+							<div class="flex items-center justify-between">
+								<div class="flex flex-1 items-center gap-4 overflow-hidden">
+									{#if isSelectionMode}
+										<Checkbox
+											checked={selectedStoreIds.has(store.id)}
+											aria-label="Select store"
+										/>
+									{/if}
+									<div class="flex-1 overflow-hidden">
+										<p class="truncate font-semibold">{store.name ?? 'N/A'}</p>
+									</div>
+								</div>
+								{#if !isSelectionMode}
+									<Button
+										href={`/dashboard/stores/${store.id}`}
+										variant="ghost"
+										size="icon"
+										aria-label="Edit store"
+										onclick={(e) => {
+											e.stopPropagation();
+											goto(`/dashboard/stores/${store.id}`);
+										}}
+									>
+										<Pencil class="h-4 w-4" />
+									</Button>
+								{/if}
+							</div>
+							<div
+								class="mt-1 max-w-3/5 truncate text-sm text-muted-foreground {isSelectionMode ? 'pl-10' : ''}"
+							>
+								{store.location ?? 'No location specified'}
+							</div>
+							{#if isSelectionMode && primaryStoreId === store.id}
+								<div class="mt-2 pl-10 text-xs font-bold text-green-600">PRIMARY</div>
+							{/if}
+							{#if isSelectionMode && selectedStoreIds.has(store.id) && primaryStoreId !== store.id}
+								<div class="mt-4 flex justify-end">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={(e) => setAsPrimary(e, store.id)}
+									>
+										Set as Primary
+									</Button>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				{:else}
+					<div class="px-4 py-10 text-center text-muted-foreground">No stores found.</div>
+				{/if}
+			</div>
+
+			<!-- Desktop Table View -->
 			<div class="hidden md:block">
 				<Table.Root>
 					<Table.Header>
-						<Table.Row gridCols="grid-cols-[auto_1fr_1fr_100px]">
+						<Table.Row gridCols="grid-cols-[auto_1fr_1fr_150px]">
 							{#if isSelectionMode}
 								<Table.Head class="w-[50px]"></Table.Head>
 							{/if}
 							<Table.Head>Name</Table.Head>
 							<Table.Head>Location</Table.Head>
-							<Table.Head class="w-[100px] text-right">Actions</Table.Head>
+							<Table.Head class="w-[150px] text-right">Actions</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#if stores && stores.length > 0}
 							{#each stores as store (store.id)}
 								<Table.Row
-									class="cursor-pointer {isSelectionMode ? '' : 'hover:bg-muted/50'}"
-									gridCols="grid-cols-[auto_1fr_1fr_100px]"
+									class="cursor-pointer {isSelectionMode ? '' : 'hover:bg-muted/50'} {primaryStoreId ===
+									store.id
+										? 'bg-green-100'
+										: ''}"
+									gridCols="grid-cols-[auto_1fr_1fr_150px]"
 									oncontextmenu={(e) => startSelectionMode(store.id, e)}
 									onclick={() => handleRowClick(store.id)}
 								>
@@ -113,7 +204,7 @@
 									{/if}
 									<Table.Cell class="font-medium">
 										<div class="flex items-center gap-2">
-											{store.name}
+											<p class="truncate">{store.name}</p>
 											{#if primaryStoreId === store.id}
 												<span class="rounded-full bg-green-500 px-2 py-0.5 text-xs text-white"
 													>Primary</span
@@ -121,12 +212,15 @@
 											{/if}
 										</div>
 									</Table.Cell>
-									<Table.Cell class="text-muted-foreground"
-										>{store.location ?? 'N/A'}</Table.Cell
-									>
+									<Table.Cell class="text-muted-foreground">
+										<p class="truncate">{store.location ?? 'N/A'}</p>
+									</Table.Cell>
 									<Table.Cell class="text-right">
 										{#if isSelectionMode && selectedStoreIds.has(store.id) && primaryStoreId !== store.id}
-											<Button variant="outline" size="sm" onclick={() => setAsPrimary(store.id)}
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={(e) => setAsPrimary(e, store.id)}
 												>Set as Primary</Button
 											>
 										{:else if !isSelectionMode}
@@ -140,7 +234,7 @@
 							{/each}
 						{:else}
 							<Table.Row>
-								<Table.Cell class="h-24 text-center">
+								<Table.Cell colspan={4} class="h-24 text-center">
 									No stores found.
 								</Table.Cell>
 							</Table.Row>
@@ -171,6 +265,7 @@
 								if (result.type === 'success' && result.data?.success) {
 									cancelSelectionMode();
 									await invalidateAll();
+									console.log('Stores merged successfully, invalidating all');
 								}
 							};
 						}}

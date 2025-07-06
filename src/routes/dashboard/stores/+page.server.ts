@@ -15,6 +15,8 @@ export const load: PageServerLoad = async () => {
 		return { stores: [] };
 	}
 
+	console.log('Stores loaded successfully:', stores);
+
 	return { stores };
 };
 

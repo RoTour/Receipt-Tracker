@@ -89,7 +89,7 @@
       </Button>
     </header>
 
-    <div class="flex-1 overflow-auto">
+    <div class="flex-1 overflow-auto max-w-[100vw]">
       <slot />
     </div>
   </div>

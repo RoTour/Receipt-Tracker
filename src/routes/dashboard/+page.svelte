@@ -58,7 +58,7 @@
 	<div class="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Spent (Last 30 Days)</Card.Title>
+				<Card.Title class="text-sm font-medium">Total Spent (This Month)</Card.Title>
 				<DollarSign class="h-4 w-4 text-muted-foreground" />
 			</Card.Header>
 			<Card.Content>
@@ -69,7 +69,7 @@
 
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Average per Receipt (Last 30 Days)</Card.Title>
+				<Card.Title class="text-sm font-medium">Average per Receipt (This Month)</Card.Title>
 				<CreditCard class="h-4 w-4 text-muted-foreground" />
 			</Card.Header>
 			<Card.Content>
@@ -89,9 +89,9 @@
 				<div class="text-2xl font-bold">{stats.totalReceipts.value}</div>
 				<p class="text-xs text-muted-foreground">
 					{#if stats.totalReceipts.change !== 0}
-						{formatChange(stats.totalReceipts.change)} in the last 30 days
+						{formatChange(stats.totalReceipts.change)} from last month
 					{:else}
-						No change in the last 30 days
+						No change from last month
 					{/if}
 				</p>
 			</Card.Content>

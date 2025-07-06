@@ -43,20 +43,21 @@ export const load: PageServerLoad = async () => {
 		return defaultData;
 	}
 
-	// Calculate statistics for the last 30 days vs the 30 days before that.
+	// Calculate statistics for the current month vs the previous month.
 	const now = new Date();
-	const thirtyDaysAgo = new Date(new Date().setDate(now.getDate() - 30));
-	const sixtyDaysAgo = new Date(new Date().setDate(now.getDate() - 60));
+	const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+	const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
 	const receiptsCurrentPeriod = allReceipts.filter(
-		(r) => r.purchase_date && new Date(r.purchase_date) >= thirtyDaysAgo
+		(r) => r.purchase_date && new Date(r.purchase_date) >= startOfCurrentMonth
 	);
 
 	const receiptsPreviousPeriod = allReceipts.filter(
 		(r) =>
 			r.purchase_date &&
-			new Date(r.purchase_date) < thirtyDaysAgo &&
-			new Date(r.purchase_date) >= sixtyDaysAgo
+			new Date(r.purchase_date) >= startOfPreviousMonth &&
+			new Date(r.purchase_date) <= endOfPreviousMonth
 	);
 
 	const totalSpentCurrent = receiptsCurrentPeriod.reduce((acc, r) => acc + (r.total ?? 0), 0);

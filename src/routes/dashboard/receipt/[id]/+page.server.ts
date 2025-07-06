@@ -6,7 +6,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { env as publicEnv } from '$env/dynamic/public';
 import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
 import { processAndSaveReceiptItems } from '$lib/server/db_helpers';
-import { createHash } from 'crypto';
+import { generateProductKey } from '$lib/server/normalization';
 
 function sha256(buffer: Buffer): string {
 	return createHash('sha256').update(buffer).digest('hex');
@@ -278,6 +278,69 @@ export const actions: Actions = {
 			const { data: updatedReceipt } = await getReceiptQuery(receiptId);
 
 			return { success: true, message: 'Product renamed!', updatedReceipt };
+		} catch (e) {
+			const message = e instanceof Error ? e.message : 'Unknown error';
+			return fail(500, { success: false, message });
+		}
+	},
+
+	searchProducts: async ({ request }) => {
+		const formData = await request.formData();
+		const query = formData.get('query') as string;
+
+		if (!query) {
+			return { products: [] };
+		}
+
+		const { data: products, error } = await supabase
+			.from('products')
+			.select('id, normalized_name, brand')
+			.ilike('normalized_name', `%${query}%`)
+			.limit(10);
+
+		if (error) {
+			return fail(500, { message: 'Failed to search for products.' });
+		}
+
+		console.debug('Search results:', products);
+
+		return { products };
+	},
+
+	linkProduct: async ({ request, params }) => {
+		const receiptId = params.id;
+		const formData = await request.formData();
+		const receiptItemId = formData.get('receipt_item_id') as string;
+		const productId = formData.get('product_id') as string;
+		const rawText = formData.get('raw_text') as string;
+
+		if (!receiptItemId || !productId || !rawText) {
+			return fail(400, { success: false, message: 'Missing required fields.' });
+		}
+
+		const aliasKey = generateProductKey(rawText);
+
+		try {
+			const { error: aliasError } = await supabase.from('product_aliases').upsert(
+				{
+					alias_text: aliasKey,
+					product_id: productId
+				},
+				{ onConflict: 'alias_text' }
+			);
+
+			if (aliasError) throw new Error(`Failed to create alias: ${aliasError.message}`);
+
+			const { error: itemUpdateError } = await supabase
+				.from('receipt_items')
+				.update({ product_id: productId })
+				.eq('id', receiptItemId);
+
+			if (itemUpdateError) throw new Error(`Failed to update item: ${itemUpdateError.message}`);
+
+			const { data: updatedReceipt } = await getReceiptQuery(receiptId);
+
+			return { success: true, message: 'Product linked!', updatedReceipt };
 		} catch (e) {
 			const message = e instanceof Error ? e.message : 'Unknown error';
 			return fail(500, { success: false, message });

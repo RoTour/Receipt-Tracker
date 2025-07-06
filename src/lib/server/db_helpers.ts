@@ -9,8 +9,9 @@ type ItemsArray = z.infer<typeof receiptZodSchema>['items'];
 
 /**
  * Processes and saves the items for a given receipt.
- * It generates a normalized key from the item's raw_text to robustly find or create a canonical product record.
- * It now uses an in-memory map to prevent duplicate database calls for the same product within a single receipt.
+ * It first checks for a user-defined product alias for the item's raw text.
+ * If no alias is found, it generates a normalized key to find or create a canonical product record.
+ * It uses an in-memory map to prevent duplicate database calls for the same product within a single receipt.
  * @param supabase - The Supabase client instance.
  * @param receiptId - The UUID of the parent receipt.
  * @param items - The array of item objects from the AI.
@@ -29,37 +30,51 @@ export async function processAndSaveReceiptItems(
 	const processedProductKeys = new Map<string, string>();
 
 	for (const item of items) {
-		const normalizedKey = generateProductKey(item.raw_text);
+		// The alias key is the normalized version of the raw text.
+		const aliasKey = generateProductKey(item.raw_text);
 		let productId: string;
 
 		// Check if we've already processed this product key for this receipt
-		if (processedProductKeys.has(normalizedKey)) {
-			productId = processedProductKeys.get(normalizedKey)!;
+		if (processedProductKeys.has(aliasKey)) {
+			productId = processedProductKeys.get(aliasKey)!;
 		} else {
-			// If not, hit the database to find or create the product
-			const { data: product, error: productError } = await supabase
-				.from('products')
-				.upsert(
-					{
-						normalized_key: normalizedKey,
-						normalized_name: item.normalized_name,
-						brand: item.brand,
-						is_verified: false
-					},
-					{ onConflict: 'normalized_key', ignoreDuplicates: false }
-				)
-				.select('id')
+			// --- New Logic: Check for a product alias first ---
+			const { data: alias } = await supabase
+				.from('product_aliases')
+				.select('product_id')
+				.eq('alias_text', aliasKey)
 				.single();
 
-			if (productError) {
-				throw new Error(
-					`Failed to upsert product with key '${normalizedKey}': ${productError.message}`
-				);
+			if (alias) {
+				// If an alias exists, use its product_id
+				productId = alias.product_id;
+			} else {
+				// --- Fallback to original logic if no alias is found ---
+				// The normalized_key for the products table is the same as the aliasKey
+				const { data: product, error: productError } = await supabase
+					.from('products')
+					.upsert(
+						{
+							normalized_key: aliasKey, // Use the same key
+							normalized_name: item.normalized_name,
+							brand: item.brand,
+							is_verified: false
+						},
+						{ onConflict: 'normalized_key', ignoreDuplicates: false }
+					)
+					.select('id')
+					.single();
+
+				if (productError) {
+					throw new Error(
+						`Failed to upsert product with key '${aliasKey}': ${productError.message}`
+					);
+				}
+				productId = product.id;
 			}
-			
-			productId = product.id;
+
 			// Cache the result for subsequent items in the same receipt
-			processedProductKeys.set(normalizedKey, productId);
+			processedProductKeys.set(aliasKey, productId);
 		}
 
 		// Create the Receipt Item, linking everything together

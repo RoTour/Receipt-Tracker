@@ -1,4 +1,4 @@
-# DATABASE INFORMATION
+## DATABASE INFORMATION
 ### **Overall Schema Purpose**
 
 This database is designed for a **Receipt Tracking Application**. It captures information about stores, the products they sell, and links them together through individual purchase receipts and their line items.
@@ -93,3 +93,51 @@ The schema consists of four main tables:
 
 When changes are needed on the database, write the SQL queries in a .sql file under `docs/[feature]/[feature].sql`.
 Assume the database is already set up and running.
+
+---
+## Code Architecture (Code must be refactored to follow this section, wait for user asking for it)
+
+### **1. Principles**
+We are aiming to follow SOLID principles and best practices for code quality and maintainability. From these principles emerge an architecture close to the Hexagonal Architecture.
+
+### **2. Architecture**
+
+#### **2.1. Hexagonal Architecture**
+* **Purpose:** The Hexagonal Architecture is a design pattern that separates the core logic of the application from the external dependencies, such as the database and the user interface. This allows the application to be tested in isolation and to be easily modified or extended in the future.
+* **Components:**
+    * `Application`: The core logic of the application, which is independent of the external dependencies.
+    * `Infrastructure`: The external dependencies, such as the database and the user interface.
+    * `Adapter`: The bridge between the `Application` and the `Infrastructure`, which is responsible for converting the data between the two.
+    * `Details`: The implementation details of the application, such as UI, database, etc.
+
+#### **2.2. Modules**
+We have a `src/modules` folder that contains the different modules of the application. Each module has its own usecases, adapters, applications, interfaces, components etc. Each type of component should be in its own folder.
+Each module is defined by a broad business need, such as 'extracting data', 'data-viz', 'data-management' etc.
+
+#### **2.3. Svelte Architecture**
+We are using SvelteKit as our framework.
+To follow our architecture principles, we should make sure that our `.svelte` files are only responsible for the UI and that the business logic is in the usecases folder.
+`src/routes` should only contain the routes and the necessary parameters for the usecases.
+Components should be in their own `src/modules/[module]/usecases/[usecase]/components` folder.
+Components with logic should be coupled with the respective ViewModel.
+
+#### **2.4. Testing Strategy**
+Before refactoring/implementing feature, it's extremely important to have a clear understanding of the feature and its requirements.
+Then, we should write tests for the feature.
+Tests should follow the main unit testing rules:
+- Test one thing only
+- Test in isolation
+- Test in a repeatable way
+- Test in a fast way
+- Test in a maintainable way
+- Test behavior, not implementation
+
+We should use DI (Dependency Injection) to inject the dependencies of the usecases.
+This projects uses supabase as database, but tests should stub the database. Avoid mocking as much as possible, prefer using DI, interface and stubs instead.
+
+Tests should be written in a separate file next to the component it's testing.
+Test for .ts files should end with .test.ts
+Test for .svelte.ts files should end with .test.svelte.ts
+
+Once tests are written, we should run them and make sure they pass.
+If they don't, we should fix the issue and run the tests again.

@@ -66,4 +66,37 @@ export class SupabaseReceiptRepository implements ReceiptRepository {
 
     return receiptRecord.id;
   }
+  async findById(id: string): Promise<Receipt | null> {
+    const { data } = await supabase
+      .from('receipts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    return data as Receipt | null;
+  }
+
+  async deleteItems(receiptId: string): Promise<void> {
+    const { error } = await supabase
+      .from('receipt_items')
+      .delete()
+      .eq('receipt_id', receiptId);
+
+    if (error) {
+      throw new Error(`Failed to delete receipt items: ${error.message}`);
+    }
+  }
+
+  async update(receipt: Pick<Receipt, 'id' | 'total' | 'content_hash'>): Promise<void> {
+    const { error } = await supabase
+      .from('receipts')
+      .update({
+        total: receipt.total,
+        content_hash: receipt.content_hash,
+      })
+      .eq('id', receipt.id);
+
+    if (error) {
+      throw new Error(`Failed to update receipt: ${error.message}`);
+    }
+  }
 }

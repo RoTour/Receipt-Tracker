@@ -22,4 +22,20 @@ export class SupabaseFileStorage implements FileStorage {
 
     return filePath;
   }
+  async download(filePath: string): Promise<File> {
+    const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
+    if (!bucketName) {
+      throw new Error('Supabase bucket name is not configured.');
+    }
+
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .download(filePath);
+
+    if (error) {
+      throw new Error(`Failed to download file: ${error.message}`);
+    }
+
+    return new File([data], filePath.split('/').pop() || 'receipt', { type: data.type });
+  }
 }

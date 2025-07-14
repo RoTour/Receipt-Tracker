@@ -4,17 +4,14 @@ import { error, fail } from '@sveltejs/kit';
 import { supabase } from '$lib/server/supabase';
 import type { PageServerLoad, Actions } from './$types';
 import { env as publicEnv } from '$env/dynamic/public';
-import { ocrReceipt, receiptZodSchema } from '$lib/server/ai';
-import { processAndSaveReceiptItems } from '$lib/server/db_helpers';
-import { generateProductKey } from '$lib/server/normalization';
 
-function sha256(buffer: Buffer): string {
-	return createHash('sha256').update(buffer).digest('hex');
-}
-function createContentHash(obj: object): string {
-	const stableString = JSON.stringify(obj, Object.keys(obj).sort());
-	return sha256(Buffer.from(stableString));
-}
+import { ReprocessReceiptUseCase } from '@modules/data-management/use-cases/ReprocessReceiptUseCase';
+import { SupabaseFileStorage } from '@modules/receipt-scanning/infrastructure/adapters/SupabaseFileStorage';
+import { OpenAiReceiptScanner } from '@modules/receipt-scanning/infrastructure/adapters/OpenAiReceiptScanner';
+import { SupabaseReceiptRepository } from '@modules/receipt-scanning/infrastructure/adapters/SupabaseReceiptRepository';
+import { SupabaseProductRepository } from '@modules/receipt-scanning/infrastructure/adapters/SupabaseProductRepository';
+import { SupabaseReceiptItemRepository } from '@modules/receipt-scanning/infrastructure/adapters/SupabaseReceiptItemRepository';
+import { generateProductKey } from '$lib/server/normalization';
 
 const getReceiptQuery = (id: string) => {
 	return supabase
@@ -91,69 +88,17 @@ export const actions: Actions = {
 	 * Reprocesses the receipt image to refresh its item data.
 	 */
 	reprocess: async ({ params }) => {
-		const receiptId = params.id;
-		const bucketName = publicEnv.PUBLIC_SUPABASE_BUCKET_NAME;
-
-		console.log(`Reprocessing receipt ID: ${receiptId}`);
-
-		const { data: originalReceipt, error: fetchError } = await supabase
-			.from('receipts')
-			.select('file_path')
-			.eq('id', receiptId)
-			.single();
-
-		if (fetchError || !originalReceipt || !originalReceipt.file_path) {
-			return fail(404, { message: 'Could not find original receipt file.' });
-		}
+		const useCase = new ReprocessReceiptUseCase(
+			new SupabaseFileStorage(),
+			new OpenAiReceiptScanner(),
+			new SupabaseReceiptRepository(),
+			new SupabaseProductRepository(),
+			new SupabaseReceiptItemRepository()
+		);
 
 		try {
-			const { data: fileBlob, error: downloadError } = await supabase.storage
-				.from(bucketName)
-				.download(originalReceipt.file_path);
-
-			if (downloadError)
-				throw new Error(`Failed to download receipt image: ${downloadError.message}`);
-
-			const file = new File(
-				[fileBlob],
-				originalReceipt.file_path.split('/').pop() || 'receipt.jpg',
-				{ type: fileBlob.type }
-			);
-
-			const aiResult = await ocrReceipt(file);
-			const validation = receiptZodSchema.safeParse(aiResult);
-
-			if (!validation.success) {
-				throw new Error(`AI validation failed: ${validation.error.message}`);
-			}
-			const { total, items } = validation.data;
-
-			const { error: deleteError } = await supabase
-				.from('receipt_items')
-				.delete()
-				.eq('receipt_id', receiptId);
-
-			if (deleteError) {
-				throw new Error(`Failed to delete old items: ${deleteError.message}`);
-			}
-
-			const newContentHash = createContentHash(validation.data);
-			const { error: updateError } = await supabase
-				.from('receipts')
-				.update({
-					total: total,
-					content_hash: newContentHash
-				})
-				.eq('id', receiptId);
-
-			if (updateError) {
-				throw new Error(`Failed to update receipt: ${updateError.message}`);
-			}
-
-			await processAndSaveReceiptItems(supabase, receiptId, items);
-
-			// Re-fetch the entire receipt with the new data
-			const { data: updatedReceipt, error: refetchError } = await getReceiptQuery(receiptId);
+			await useCase.execute(params.id);
+            const { data: updatedReceipt, error: refetchError } = await getReceiptQuery(params.id);
 
 			if (refetchError) {
 				throw new Error(`Failed to refetch receipt data after update: ${refetchError.message}`);

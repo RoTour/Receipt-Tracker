@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import { createOpenAI } from '@ai-sdk/openai';
 import { type CoreMessage, generateObject } from 'ai';
 import { z } from 'zod';
+import { logger } from '$lib/server/logger';
 
 // Configure the AI client to use OpenRouter
 const openrouter = createOpenAI({
@@ -32,6 +33,8 @@ const receiptSchema = z.object({
 	total: z.number().optional().describe('The final total amount from the receipt.'),
 	items: z.array(itemSchema).describe('An array of all items listed on the receipt.')
 });
+
+const AI_MODEL_NAME = env.AI_MODEL_NAME || 'google/gemini-2.5-flash-preview-05-20';
 
 /**
  * Performs OCR on a receipt image file using Gemini.
@@ -70,17 +73,29 @@ export async function ocrReceipt(file: File) {
 	];
 
 	try {
-		console.log('Sending request to AI model for structured OCR...');
+		logger.info(`Sending request to AI model "${AI_MODEL_NAME}" for structured OCR...`);
 		const { object } = await generateObject({
-			model: openrouter('google/gemini-2.5-flash-preview-05-20'),
+			model: openrouter(AI_MODEL_NAME),
 			messages: messages,
 			schema: receiptSchema
 		});
-		console.log('AI model responded successfully.');
+		logger.info('AI model responded successfully.');
 		return object;
-	} catch (error) {
-		console.error('AI OCR processing failed:', error);
-		throw new Error('Failed to process receipt image with AI.');
+	} catch (e) {
+		const error = e as Error & { cause?: { status?: number } };
+		let errorMessage = 'Failed to process receipt image with AI.';
+
+		// Check for a more specific error, like a model not found error (often a 404).
+		if (error.message.includes('Model not found') || error.cause?.status === 404) {
+			errorMessage = `The configured AI model "${AI_MODEL_NAME}" was not found. Please check the AI_MODEL_NAME environment variable.`;
+			logger.error(errorMessage, error, { modelName: AI_MODEL_NAME });
+		} else {
+			logger.error('An unexpected error occurred during AI OCR processing.', error, {
+				modelName: AI_MODEL_NAME
+			});
+		}
+
+		throw new Error(errorMessage);
 	}
 }
 

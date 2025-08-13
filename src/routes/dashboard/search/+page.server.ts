@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	// We need to map it to what the frontend component expects.
 	const searchResults = data.map((item) => ({
 		id: item.id,
+		receipt_id: item.receipt_id,
 		price: item.price,
 		quantity: item.quantity,
 		products: {

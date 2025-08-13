@@ -58,7 +58,7 @@
 			{#if data.searchResults && data.searchResults.length > 0}
 				<div class="space-y-4">
 					{#each data.searchResults as item (item.id)}
-						<div class="rounded-lg border bg-card p-4">
+						<a href={`/dashboard/receipt/${item.receipt_id}`} class="block rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50">
 							<div class="flex items-start justify-between">
 								<div>
 									<div class="font-bold">{item.products?.normalized_name ?? 'N/A'}</div>
@@ -74,7 +74,7 @@
 								<div>at {item.receipts?.stores?.name ?? 'N/A'}</div>
 								<div>on {new Date(item.receipts?.purchase_date).toLocaleDateString()}</div>
 							</div>
-						</div>
+						</a>
 					{/each}
 				</div>
 			{:else if data.query}
@@ -98,7 +98,10 @@
 					</Table.Header>
 					<Table.Body>
 						{#each data.searchResults as item (item.id)}
-							<Table.Row gridCols="grid-cols-[40%_30%_15%_15%]">
+							<Table.Row 
+								class="cursor-pointer"
+								onclick={() => goto(`/dashboard/receipt/${item.receipt_id}`)}
+								gridCols="grid-cols-[40%_30%_15%_15%]">
 								<Table.Cell>
 									<div class="font-medium">{item.products?.normalized_name ?? 'N/A'}</div>
 									<div class="text-muted-foreground text-xs">{item.products?.brand ?? ''}</div>
